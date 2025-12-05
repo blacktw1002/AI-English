@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>LingoFlow</title>
+    <title>LingoFlow AI</title>
     
     <!-- 1. PWA & Mobile Icons -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,43 +14,38 @@
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3413/3413535.png">
     <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3413/3413535.png">
 
-    <!-- Android Manifest (Data URI for single file deployment) -->
+    <!-- Android Manifest (Embedded for GitHub Pages/Static Host) -->
     <link rel="manifest" id="manifest-placeholder">
     <script>
       const manifest = {
         "short_name": "LingoFlow",
         "name": "LingoFlow AI English",
         "icons": [
-          {
-            "src": "https://cdn-icons-png.flaticon.com/512/3413/3413535.png",
-            "sizes": "512x512",
-            "type": "image/png"
-          }
+          { "src": "https://cdn-icons-png.flaticon.com/512/3413/3413535.png", "sizes": "512x512", "type": "image/png" }
         ],
         "start_url": ".",
         "display": "standalone",
         "theme_color": "#ffffff",
         "background_color": "#ffffff"
       };
-      const stringManifest = JSON.stringify(manifest);
-      const blob = new Blob([stringManifest], {type: 'application/json'});
-      const manifestURL = URL.createObjectURL(blob);
-      document.querySelector('#manifest-placeholder').setAttribute('href', manifestURL);
+      const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+      document.querySelector('#manifest-placeholder').setAttribute('href', URL.createObjectURL(blob));
     </script>
     
-    <!-- 2. Libraries -->
+    <!-- 2. Libraries (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- React & Babel -->
+    <!-- React & Babel (Critical for running JSX in browser) -->
     <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <!-- Google GenAI SDK -->
+    <!-- Google GenAI SDK (ES Module Loader) -->
     <script type="module">
       import { GoogleGenAI, Type, Modality } from "https://esm.run/@google/genai";
+      // Expose to global window so Babel script can see it
       window.GoogleGenAI = GoogleGenAI;
       window.GenAIType = Type;
       window.GenAIModality = Modality;
@@ -96,26 +91,42 @@
       @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
       .animate-fade-in-up { animation: fadeInUp 0.4s ease-out forwards; }
       .perspective-container { perspective: 1000px; }
+      
+      /* Loading Spinner for Initial Load */
+      #loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: white; z-index: 9999; transition: opacity 0.5s; }
     </style>
 <script type="importmap">
 {
   "imports": {
-    "react": "https://aistudiocdn.com/react@^19.2.1",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
     "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "react": "https://aistudiocdn.com/react@^19.2.1",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0"
   }
 }
 </script>
 </head>
 <body>
+    <div id="loading">
+        <div class="flex flex-col items-center">
+            <div class="w-12 h-12 border-4 border-violet-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p class="text-gray-500 font-bold">LingoFlow 載入中...</p>
+        </div>
+    </div>
+    
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
         
+        // Hide loader when React mounts
+        setTimeout(() => {
+            const loader = document.getElementById('loading');
+            if(loader) { loader.style.opacity = '0'; setTimeout(()=>loader.remove(), 500); }
+        }, 500);
+
         // ==========================================
-        // CONSTANTS & FALLBACK DATA
+        // CONSTANTS & DATA
         // ==========================================
         const AppTab = { WORDS: 'words', READ: 'read', TALK: 'talk', PROFILE: 'profile' };
 
@@ -146,20 +157,21 @@
         ];
 
         // ==========================================
-        // UTILS & SERVICES
+        // UTILS
         // ==========================================
-        const getApiKey = () => typeof window !== 'undefined' ? localStorage.getItem('gemini_api_key') || '' : '';
-        const saveApiKey = (key) => typeof window !== 'undefined' && localStorage.setItem('gemini_api_key', key);
+        const getApiKey = () => localStorage.getItem('gemini_api_key') || '';
+        const saveApiKey = (key) => localStorage.setItem('gemini_api_key', key);
         const hasApiKey = () => !!getApiKey();
         const getTodayString = () => new Date().toISOString().split('T')[0];
-
-        // Clean AI JSON response (remove markdown code blocks)
+        
         const cleanJSON = (text) => {
             if (!text) return '{}';
-            return text.replace(/```json/g, '').replace(/```/g, '').trim();
+            let cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
+            try { JSON.parse(cleaned); return cleaned; } 
+            catch { return '{}'; }
         };
 
-        // Audio Helper Functions
+        // Audio Utils
         function base64ToUint8Array(base64) {
           const binaryString = atob(base64);
           const len = binaryString.length;
@@ -193,27 +205,22 @@
           return int16.buffer;
         }
 
-        // --- High Quality AI Text-to-Speech ---
+        // --- AI TTS ---
         async function playTextToSpeech(text, setLoadingState) {
           if (setLoadingState) setLoadingState(true);
           const apiKey = getApiKey();
           
-          // 1. Try Gemini AI TTS
           if (apiKey && window.GoogleGenAI) {
             try {
               const ai = new window.GoogleGenAI({ apiKey });
-              // Use the dedicated TTS model
               const response = await ai.models.generateContent({
                 model: "gemini-2.5-flash-preview-tts",
                 contents: { parts: [{ text: text }] },
                 config: {
                   responseModalities: [window.GenAIModality.AUDIO],
-                  speechConfig: {
-                    voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } }
-                  }
+                  speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
                 }
               });
-              
               const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
               if (base64Audio) {
                 const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -223,47 +230,30 @@
                 source.connect(ctx.destination);
                 source.start();
                 if (setLoadingState) setLoadingState(false);
-                return; // Success
+                return;
               }
-            } catch (error) {
-              console.warn("AI TTS failed, falling back to browser.", error);
-            }
+            } catch (error) { console.warn("AI TTS failed", error); }
           }
           
-          // 2. Fallback: Browser TTS
           const u = new SpeechSynthesisUtterance(text);
           u.lang = 'en-US';
-          const voices = window.speechSynthesis.getVoices();
-          const usVoice = voices.find(v => v.lang === 'en-US' && v.name.includes('Google'));
-          if (usVoice) u.voice = usVoice;
-          u.rate = 0.9; 
           window.speechSynthesis.speak(u);
           if (setLoadingState) setLoadingState(false);
         }
 
-        // --- Content Generation ---
+        // --- Content Gen ---
         const generateDailyContent = async (type) => {
            const apiKey = getApiKey();
            if (!apiKey || !window.GoogleGenAI) throw new Error("API Key Missing");
            const ai = new window.GoogleGenAI({ apiKey });
            
            if (type === 'words') {
-               const prompt = `Generate 5 advanced English vocabulary words for TOEIC preparation. 
-               Return strictly a JSON array (no markdown) with properties: id (random string), term, ipa, partOfSpeech, definition (English), example, translation (Traditional Chinese).`;
-               const res = await ai.models.generateContent({
-                   model: 'gemini-2.5-flash',
-                   contents: prompt,
-                   config: { responseMimeType: 'application/json' }
-               });
+               const prompt = `Generate 5 advanced English vocabulary words for TOEIC. Return strictly a JSON array with: id, term, ipa, partOfSpeech, definition, example, translation (Traditional Chinese).`;
+               const res = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json' } });
                return JSON.parse(cleanJSON(res.text));
            } else if (type === 'article') {
-               const prompt = `Write a short, engaging article (approx 120 words) about a random interesting fact, psychology, or travel. 
-               Return strictly a JSON object (no markdown) with: title, author (make one up), category, and segments (array of objects with 'en' and 'cn' translation).`;
-               const res = await ai.models.generateContent({
-                   model: 'gemini-2.5-flash',
-                   contents: prompt,
-                   config: { responseMimeType: 'application/json' }
-               });
+               const prompt = `Write a short article (120 words) about interesting facts. Return strictly a JSON object with: title, author, category, segments (array of {en, cn}).`;
+               const res = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json' } });
                const data = JSON.parse(cleanJSON(res.text));
                data.id = Date.now().toString();
                data.image = `https://picsum.photos/400/200?random=${Date.now()}`;
@@ -273,7 +263,7 @@
 
         const lookupWord = async (term) => {
           const apiKey = getApiKey();
-          if (!apiKey) throw new Error("API_KEY_MISSING");
+          if (!apiKey) throw new Error("Missing Key");
           const ai = new window.GoogleGenAI({ apiKey });
           const res = await ai.models.generateContent({
               model: 'gemini-2.5-flash',
@@ -335,8 +325,6 @@
           const [animating, setAnimating] = useState(false);
           const [term, setTerm] = useState('');
           const [isSpeaking, setIsSpeaking] = useState(false);
-          
-          // AI Search
           const [aiResult, setAiResult] = useState(null);
           const [searching, setSearching] = useState(false);
 
@@ -346,14 +334,8 @@
           useEffect(() => { setIndex(0); setShowBack(false); setAiResult(null); }, [term]);
 
           const flip = () => { if(animating)return; setAnimating(true); setTimeout(() => { setShowBack(!showBack); setAnimating(false); }, 150); };
-          
-          const handleNext = () => { 
-              if(index < filtered.length-1) { setShowBack(false); setTimeout(()=>setIndex(i=>i+1), 100); }
-              else setToast({show:true, message:"今日目標達成！", type:'success'});
-          };
-          
+          const handleNext = () => { if(index < filtered.length-1) { setShowBack(false); setTimeout(()=>setIndex(i=>i+1), 100); } else setToast({show:true, message:"今日目標達成！", type:'success'}); };
           const handlePrev = () => { if(index > 0) { setShowBack(false); setTimeout(()=>setIndex(i=>i-1), 100); } };
-          
           const speak = (e, text) => { e.stopPropagation(); playTextToSpeech(text, setIsSpeaking); };
           const aiSearch = async () => {
               if(!term) return; setSearching(true); setAiResult(null);
@@ -364,7 +346,6 @@
 
           return (
             <div className="flex flex-col h-full pt-4 pb-28 px-4 bg-slate-50 relative">
-              {/* Search */}
               <div className="relative mb-6">
                   <i className="fas fa-search absolute left-4 top-3.5 text-gray-400"></i>
                   <input value={term} onChange={e=>setTerm(e.target.value)} placeholder="搜尋單字..." className="w-full pl-10 pr-4 py-3 rounded-2xl border-none shadow-sm focus:ring-2 focus:ring-violet-200 font-bold text-gray-700" />
@@ -394,7 +375,6 @@
                         </div>
                         <span className="text-[10px] font-bold text-gray-400 w-12 text-right">{Math.min(index+1, dailyGoal)} / {dailyGoal}</span>
                     </div>
-
                     <div className="flex-1 flex flex-col items-center justify-center perspective-container">
                         <div className={`w-full max-w-sm aspect-[3/4] cursor-pointer transition-transform duration-300 ${animating?'scale-x-0 opacity-50':'scale-x-100 opacity-100'}`} onClick={flip}>
                             <div className={`w-full h-full rounded-[2.5rem] shadow-xl border border-white relative flex flex-col overflow-hidden ${showBack?'bg-gradient-to-br from-violet-600 to-fuchsia-700 text-white':'bg-white text-gray-800'}`}>
@@ -417,8 +397,7 @@
                             </div>
                         </div>
                     </div>
-
-                    {/* Navigation Arrows - RESTORED */}
+                    {/* Navigation Buttons */}
                     <div className="flex flex-col w-full max-w-sm mx-auto mt-6 z-10">
                          <div className="flex items-center justify-center gap-8">
                             <button onClick={handlePrev} disabled={index===0} className={`w-16 h-16 rounded-full bg-white shadow-lg text-gray-400 flex items-center justify-center text-xl transition active:scale-95 border border-gray-100 ${index===0?'opacity-50 cursor-not-allowed':''}`}>
@@ -489,12 +468,10 @@
                       </div>
                   </div>
               </div>
-              
               <div className="sticky top-0 bg-white/95 backdrop-blur z-20 px-6 py-3 flex items-center justify-between border-b border-gray-100">
                   <button onClick={()=>playTextToSpeech(article.segments.map(s=>s.en).join(' '))} className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center"><i className="fas fa-play"></i></button>
                   <button onClick={()=>setBilingual(!bilingual)} className={`px-4 py-1.5 rounded-full text-xs font-bold border ${bilingual?'bg-emerald-600 text-white border-emerald-600':'border-gray-200 text-gray-500'}`}>{bilingual?'中英':'純英'}</button>
               </div>
-
               <div className="p-6 space-y-6">
                   {article.segments.map((seg, i) => (
                       <div key={i}>
@@ -507,7 +484,6 @@
                       </div>
                   ))}
               </div>
-
               {selected && (
                   <div className="fixed inset-0 z-50 flex items-end justify-center pointer-events-none">
                       <div className="absolute inset-0 bg-black/20 pointer-events-auto" onClick={()=>setSelected(null)}></div>
@@ -529,13 +505,12 @@
           );
         };
 
-        // --- TALK TAB (Transcript Style) ---
+        // --- TALK TAB ---
         const TalkTab = () => {
           const [connected, setConnected] = useState(false);
           const [messages, setMessages] = useState([]);
           const [topic, setTopic] = useState(DAILY_TOPICS[0]);
           const [status, setStatus] = useState("點擊麥克風開始");
-          
           const audioRef = useRef(null);
           const streamRef = useRef(null);
 
@@ -557,7 +532,6 @@
                   const source = ctx.createMediaStreamSource(stream);
                   const proc = ctx.createScriptProcessor(4096,1,1);
                   
-                  // Simple logic just to initiate connection flow (In real PWA use WebSocket/Worklet)
                   const session = ai.live.connect({
                       model: 'gemini-2.5-flash-native-audio-preview-09-2025',
                       callbacks: {
@@ -578,7 +552,6 @@
                       config: { responseModalities:['AUDIO'], inputAudioTranscription:{}, outputAudioTranscription:{}, systemInstruction:`Chat about: ${topic}. Be friendly.` }
                   });
                   
-                  // Wait for session then hook up audio
                   const sess = await session;
                   proc.onaudioprocess = (e) => {
                       const data = arrayBufferToBase64(float32ToPCM16(e.inputBuffer.getChannelData(0)));
@@ -600,7 +573,6 @@
                     <p className="text-xs font-bold text-rose-400 uppercase tracking-widest text-center mb-1">Today's Topic</p>
                     <h2 className="text-xl font-black text-gray-800 text-center leading-tight">"{topic}"</h2>
                 </div>
-                
                 <div className="flex-1 overflow-y-auto p-4 space-y-6">
                     {messages.length===0 && (
                         <div className="text-center mt-20 opacity-30">
@@ -620,7 +592,6 @@
                         ))}
                     </div>
                 </div>
-                
                 <div className="flex justify-center p-6 bg-gradient-to-t from-white via-white to-transparent sticky bottom-20">
                     <button onClick={connected?disconnect:init} className={`w-20 h-20 rounded-full shadow-2xl flex items-center justify-center border-4 border-white transition active:scale-95 ${connected?'bg-rose-500 animate-pulse':'bg-gradient-to-br from-rose-500 to-pink-600'}`}>
                         <i className={`fas ${connected?'fa-stop':'fa-microphone'} text-2xl text-white`}></i>
@@ -651,7 +622,6 @@
                 setWords(p=>[{id:Date.now().toString(), term:t, definition:d, translation:tr, saved:true, mastered:false, ipa:'', partOfSpeech:'', example:ex?.example||''}, ...p]);
                 setToast({show:true, message:"已儲存", type:'success'});
             };
-
             const toggleSave = (id) => setWords(p=>p.map(w=>w.id===id?{...w, saved:!w.saved}:w));
 
             const render = () => {
@@ -662,7 +632,6 @@
                         <div className="bg-white p-6 rounded-3xl shadow-sm mb-6">
                             <h3 className="font-bold mb-4">API 設定</h3>
                             <input placeholder="API Key" className="w-full bg-gray-50 p-3 rounded-xl text-sm font-bold mb-3" onBlur={(e)=>saveApiKey(e.target.value)} defaultValue={getApiKey()}/>
-                            <p className="text-xs text-gray-400">輸入後自動儲存，重啟 App 生效</p>
                         </div>
                         <div className="bg-white p-6 rounded-3xl shadow-sm mb-6">
                             <h3 className="font-bold mb-2">每日目標: {goal}</h3>
