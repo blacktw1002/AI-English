@@ -5,16 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>LingoFlow AI</title>
     
-    <!-- 1. PWA & Mobile Icons -->
+    <!-- 1. PWA Setup (Mobile Icons & Theme) -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="theme-color" content="#ffffff">
-    
-    <!-- iOS Icon -->
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3413/3413535.png">
     <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3413/3413535.png">
 
-    <!-- Android Manifest (Embedded for GitHub Pages/Static Host) -->
+    <!-- Hack to make PWA Manifest work on static hosts like GitHub Pages without a separate file -->
     <link rel="manifest" id="manifest-placeholder">
     <script>
       const manifest = {
@@ -32,20 +30,19 @@
       document.querySelector('#manifest-placeholder').setAttribute('href', URL.createObjectURL(blob));
     </script>
     
-    <!-- 2. Libraries (CDN) -->
+    <!-- 2. Styling & Fonts -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- React & Babel (Critical for running JSX in browser) -->
+    <!-- 3. React & Babel (For running JSX in browser) -->
     <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <!-- Google GenAI SDK (ES Module Loader) -->
+    <!-- 4. Google GenAI SDK -->
     <script type="module">
       import { GoogleGenAI, Type, Modality } from "https://esm.run/@google/genai";
-      // Expose to global window so Babel script can see it
       window.GoogleGenAI = GoogleGenAI;
       window.GenAIType = Type;
       window.GenAIModality = Modality;
@@ -61,46 +58,48 @@
       .no-scrollbar::-webkit-scrollbar { display: none; }
       .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       
-      /* Chat Transcript Style */
-      .transcript-container { display: flex; flex-direction: column; gap: 24px; }
+      /* Chat Transcript Styles */
+      .transcript-container { display: flex; flex-direction: column; gap: 24px; padding-bottom: 120px; }
       .transcript-row { display: flex; gap: 12px; align-items: flex-start; }
       .transcript-row.user { flex-direction: row-reverse; }
       
       .transcript-avatar { 
-        width: 40px; height: 40px; border-radius: 12px; 
+        width: 36px; height: 36px; border-radius: 12px; 
         display: flex; align-items: center; justify-content: center; 
-        font-size: 1.2rem; flex-shrink: 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        font-size: 1rem; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       }
       .transcript-row.user .transcript-avatar { background: #f43f5e; color: white; }
       .transcript-row.ai .transcript-avatar { background: white; color: #f43f5e; border: 1px solid #ffe4e6; }
 
       .transcript-content { display: flex; flex-direction: column; max-width: 85%; }
-      .transcript-name { font-size: 0.75rem; font-weight: 700; margin-bottom: 4px; color: #94a3b8; padding: 0 4px; }
+      .transcript-name { font-size: 0.7rem; font-weight: 700; margin-bottom: 2px; color: #94a3b8; padding: 0 4px; }
       .transcript-row.user .transcript-name { text-align: right; }
       
       .transcript-text { 
-        font-size: 1rem; line-height: 1.6; padding: 16px; border-radius: 20px; 
-        position: relative; box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+        font-size: 0.95rem; line-height: 1.6; padding: 12px 16px; border-radius: 16px; 
+        position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
       }
       .transcript-row.ai .transcript-text { background-color: white; border: 1px solid #f1f5f9; color: #334155; border-top-left-radius: 4px; }
       .transcript-row.user .transcript-text { background-color: #fff1f2; color: #be123c; border-top-right-radius: 4px; border: 1px solid #fda4af; }
 
-      /* Animations */
+      /* Animation Classes */
       @keyframes fadeInDown { from { opacity: 0; transform: translate(-50%, -20px); } to { opacity: 1; transform: translate(-50%, 0); } }
       .animate-fade-in-down { animation: fadeInDown 0.3s ease-out forwards; }
       @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
       .animate-fade-in-up { animation: fadeInUp 0.4s ease-out forwards; }
+      @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+      .animate-slide-up { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
       .perspective-container { perspective: 1000px; }
       
-      /* Loading Spinner for Initial Load */
-      #loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: white; z-index: 9999; transition: opacity 0.5s; }
+      /* Loader */
+      #loading { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: white; z-index: 9999; transition: opacity 0.5s; }
     </style>
 <script type="importmap">
 {
   "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.1",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
     "react/": "https://aistudiocdn.com/react@^19.2.1/",
-    "react": "https://aistudiocdn.com/react@^19.2.1",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0"
   }
 }
@@ -108,10 +107,8 @@
 </head>
 <body>
     <div id="loading">
-        <div class="flex flex-col items-center">
-            <div class="w-12 h-12 border-4 border-violet-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-            <p class="text-gray-500 font-bold">LingoFlow 載入中...</p>
-        </div>
+        <div class="w-12 h-12 border-4 border-violet-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p class="text-gray-500 font-bold text-sm tracking-widest">LINGOFLOW AI</p>
     </div>
     
     <div id="root"></div>
@@ -119,14 +116,14 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
         
-        // Hide loader when React mounts
+        // Hide loader
         setTimeout(() => {
             const loader = document.getElementById('loading');
             if(loader) { loader.style.opacity = '0'; setTimeout(()=>loader.remove(), 500); }
-        }, 500);
+        }, 800);
 
         // ==========================================
-        // CONSTANTS & DATA
+        // 1. DATA & CONSTANTS
         // ==========================================
         const AppTab = { WORDS: 'words', READ: 'read', TALK: 'talk', PROFILE: 'profile' };
 
@@ -134,8 +131,6 @@
           { id: '1', term: 'Ambiguous', ipa: '/æmˈbɪɡ.ju.əs/', partOfSpeech: 'adj.', definition: 'Having more than one possible meaning.', example: 'The wording is ambiguous.', translation: '模稜兩可的', mastered: false, saved: false },
           { id: '2', term: 'Lucrative', ipa: '/ˈluː.krə.tɪv/', partOfSpeech: 'adj.', definition: 'Producing a lot of money.', example: 'A lucrative business.', translation: '利潤豐厚的', mastered: false, saved: false },
           { id: '3', term: 'Meticulous', ipa: '/məˈtɪk.jə.ləs/', partOfSpeech: 'adj.', definition: 'Very careful and precise.', example: 'Meticulous planning.', translation: '一絲不苟的', mastered: false, saved: false },
-          { id: '4', term: 'Resilient', ipa: '/rɪˈzɪl.jənt/', partOfSpeech: 'adj.', definition: 'Able to recover quickly.', example: 'She is resilient.', translation: '有韌性的', mastered: false, saved: false },
-          { id: '5', term: 'Pragmatic', ipa: '/præɡˈmæt.ɪk/', partOfSpeech: 'adj.', definition: 'Solving problems sensibly.', example: 'A pragmatic approach.', translation: '務實的', mastered: false, saved: false },
         ];
 
         const FALLBACK_ARTICLE = {
@@ -146,24 +141,25 @@
           image: 'https://picsum.photos/400/200?grayscale',
           segments: [
               { en: "Habits are the small decisions you make and actions you perform every day.", cn: "習慣是你每天做出的微小決定和執行的行動。" },
-              { en: "According to researchers at Duke University, habits account for about 40 percent of our behaviors.", cn: "根據杜克大學研究人員的說法，習慣佔我們行為的大約 40%。" },
               { en: "Your life today is essentially the sum of your habits.", cn: "你今天的生活本質上是你習慣的總和。" }
           ]
         };
 
         const DAILY_TOPICS = [
-            "Ordering coffee", "Weekend plans", "Favorite movies", "Dream jobs", 
-            "Healthy food", "Tech trends", "Travel memories", "Asking directions", "Shopping"
+            "Ordering coffee at a cafe", "Weekend travel plans", "Favorite movies and TV shows", 
+            "Dream jobs and career", "Healthy food choices", "Latest technology trends", 
+            "Childhood memories", "Asking for directions", "Shopping for clothes"
         ];
 
         // ==========================================
-        // UTILS
+        // 2. UTILITIES & SERVICES
         // ==========================================
         const getApiKey = () => localStorage.getItem('gemini_api_key') || '';
         const saveApiKey = (key) => localStorage.setItem('gemini_api_key', key);
         const hasApiKey = () => !!getApiKey();
         const getTodayString = () => new Date().toISOString().split('T')[0];
         
+        // JSON Sanitizer
         const cleanJSON = (text) => {
             if (!text) return '{}';
             let cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -171,7 +167,7 @@
             catch { return '{}'; }
         };
 
-        // Audio Utils
+        // Audio Helper Functions
         function base64ToUint8Array(base64) {
           const binaryString = atob(base64);
           const len = binaryString.length;
@@ -205,7 +201,9 @@
           return int16.buffer;
         }
 
-        // --- AI TTS ---
+        // --- AI API CALLS ---
+        
+        // 1. TTS (Text to Speech)
         async function playTextToSpeech(text, setLoadingState) {
           if (setLoadingState) setLoadingState(true);
           const apiKey = getApiKey();
@@ -232,27 +230,28 @@
                 if (setLoadingState) setLoadingState(false);
                 return;
               }
-            } catch (error) { console.warn("AI TTS failed", error); }
+            } catch (error) { console.warn("AI TTS failed, falling back", error); }
           }
           
+          // Fallback to browser TTS
           const u = new SpeechSynthesisUtterance(text);
           u.lang = 'en-US';
           window.speechSynthesis.speak(u);
           if (setLoadingState) setLoadingState(false);
         }
 
-        // --- Content Gen ---
+        // 2. Generate Daily Content
         const generateDailyContent = async (type) => {
            const apiKey = getApiKey();
            if (!apiKey || !window.GoogleGenAI) throw new Error("API Key Missing");
            const ai = new window.GoogleGenAI({ apiKey });
            
            if (type === 'words') {
-               const prompt = `Generate 5 advanced English vocabulary words for TOEIC. Return strictly a JSON array with: id, term, ipa, partOfSpeech, definition, example, translation (Traditional Chinese).`;
+               const prompt = `Generate 5 advanced English vocabulary words for TOEIC/Business. Return strictly a JSON array with: id, term, ipa, partOfSpeech, definition, example, translation (Traditional Chinese).`;
                const res = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json' } });
                return JSON.parse(cleanJSON(res.text));
            } else if (type === 'article') {
-               const prompt = `Write a short article (120 words) about interesting facts. Return strictly a JSON object with: title, author, category, segments (array of {en, cn}).`;
+               const prompt = `Write a short article (approx 100 words) about a random interesting fact or self-improvement. Return strictly a JSON object with: title, author, category, segments (array of object {en: string, cn: string}). Ensure 'cn' is Traditional Chinese.`;
                const res = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { responseMimeType: 'application/json' } });
                const data = JSON.parse(cleanJSON(res.text));
                data.id = Date.now().toString();
@@ -261,18 +260,20 @@
            }
         };
 
+        // 3. Lookup Word
         const lookupWord = async (term) => {
           const apiKey = getApiKey();
           if (!apiKey) throw new Error("Missing Key");
           const ai = new window.GoogleGenAI({ apiKey });
           const res = await ai.models.generateContent({
               model: 'gemini-2.5-flash',
-              contents: `Define "${term}" in JSON: term, translation (Trad. Chinese), definition, example, ipa, partOfSpeech.`,
+              contents: `Define "${term}". Return JSON: term, translation (Trad. Chinese), definition, example, ipa, partOfSpeech.`,
               config: { responseMimeType: 'application/json' }
           });
           return JSON.parse(cleanJSON(res.text));
         };
 
+        // 4. Context Explanation
         const explainWordInContext = async (word, context) => {
            const apiKey = getApiKey();
            if (!apiKey) return null;
@@ -285,6 +286,7 @@
            return JSON.parse(cleanJSON(res.text));
         };
 
+        // 5. Live Client
         const getLiveClient = () => {
             const apiKey = getApiKey();
             if (!apiKey) throw new Error("API Key not found");
@@ -292,7 +294,7 @@
         };
 
         // ==========================================
-        // COMPONENTS
+        // 3. UI COMPONENTS
         // ==========================================
 
         const Toast = ({ state, onClose }) => {
@@ -318,7 +320,7 @@
           );
         };
 
-        // --- WORD TAB ---
+        // --- [TAB] WORD FLASHCARDS ---
         const WordTab = ({ words, toggleSaved, setToast, onAddWord, dailyGoal }) => {
           const [index, setIndex] = useState(0);
           const [showBack, setShowBack] = useState(false);
@@ -334,9 +336,18 @@
           useEffect(() => { setIndex(0); setShowBack(false); setAiResult(null); }, [term]);
 
           const flip = () => { if(animating)return; setAnimating(true); setTimeout(() => { setShowBack(!showBack); setAnimating(false); }, 150); };
-          const handleNext = () => { if(index < filtered.length-1) { setShowBack(false); setTimeout(()=>setIndex(i=>i+1), 100); } else setToast({show:true, message:"今日目標達成！", type:'success'}); };
-          const handlePrev = () => { if(index > 0) { setShowBack(false); setTimeout(()=>setIndex(i=>i-1), 100); } };
+          
+          const handleNext = () => { 
+             if(index < filtered.length-1) { setShowBack(false); setTimeout(()=>setIndex(i=>i+1), 100); } 
+             else setToast({show:true, message:"今日目標達成！", type:'success'}); 
+          };
+          
+          const handlePrev = () => { 
+             if(index > 0) { setShowBack(false); setTimeout(()=>setIndex(i=>i-1), 100); } 
+          };
+          
           const speak = (e, text) => { e.stopPropagation(); playTextToSpeech(text, setIsSpeaking); };
+          
           const aiSearch = async () => {
               if(!term) return; setSearching(true); setAiResult(null);
               try { const res = await lookupWord(term); setAiResult(res); } 
@@ -346,7 +357,8 @@
 
           return (
             <div className="flex flex-col h-full pt-4 pb-28 px-4 bg-slate-50 relative">
-              <div className="relative mb-6">
+              {/* Search Bar */}
+              <div className="relative mb-6 z-20">
                   <i className="fas fa-search absolute left-4 top-3.5 text-gray-400"></i>
                   <input value={term} onChange={e=>setTerm(e.target.value)} placeholder="搜尋單字..." className="w-full pl-10 pr-4 py-3 rounded-2xl border-none shadow-sm focus:ring-2 focus:ring-violet-200 font-bold text-gray-700" />
                   {term && <button onClick={()=>setTerm('')} className="absolute right-4 top-3.5 text-gray-400"><i className="fas fa-times"></i></button>}
@@ -369,12 +381,15 @@
                   </div>
               ) : (
                   <>
+                    {/* Progress */}
                     <div className="w-full bg-gray-200 h-1.5 rounded-full mb-6 flex items-center gap-2">
                         <div className="flex-1 bg-gray-200 h-1.5 rounded-full overflow-hidden">
                             <div className="bg-gradient-to-r from-violet-500 to-fuchsia-500 h-full transition-all" style={{width:`${Math.min(((index+1)/dailyGoal)*100,100)}%`}}></div>
                         </div>
                         <span className="text-[10px] font-bold text-gray-400 w-12 text-right">{Math.min(index+1, dailyGoal)} / {dailyGoal}</span>
                     </div>
+
+                    {/* Flashcard (Scale Swap) */}
                     <div className="flex-1 flex flex-col items-center justify-center perspective-container">
                         <div className={`w-full max-w-sm aspect-[3/4] cursor-pointer transition-transform duration-300 ${animating?'scale-x-0 opacity-50':'scale-x-100 opacity-100'}`} onClick={flip}>
                             <div className={`w-full h-full rounded-[2.5rem] shadow-xl border border-white relative flex flex-col overflow-hidden ${showBack?'bg-gradient-to-br from-violet-600 to-fuchsia-700 text-white':'bg-white text-gray-800'}`}>
@@ -397,13 +412,21 @@
                             </div>
                         </div>
                     </div>
+
                     {/* Navigation Buttons */}
                     <div className="flex flex-col w-full max-w-sm mx-auto mt-6 z-10">
                          <div className="flex items-center justify-center gap-8">
-                            <button onClick={handlePrev} disabled={index===0} className={`w-16 h-16 rounded-full bg-white shadow-lg text-gray-400 flex items-center justify-center text-xl transition active:scale-95 border border-gray-100 ${index===0?'opacity-50 cursor-not-allowed':''}`}>
+                            <button 
+                                onClick={handlePrev} 
+                                disabled={index===0} 
+                                className={`w-16 h-16 rounded-full bg-white shadow-lg text-gray-400 flex items-center justify-center text-xl transition active:scale-95 border border-gray-100 ${index===0?'opacity-50 cursor-not-allowed':''}`}
+                            >
                                 <i className="fas fa-arrow-left"></i>
                             </button>
-                            <button onClick={handleNext} className="w-16 h-16 rounded-full bg-violet-600 shadow-xl shadow-violet-200 text-white flex items-center justify-center text-xl transition active:scale-95 hover:bg-violet-700">
+                            <button 
+                                onClick={handleNext} 
+                                className="w-16 h-16 rounded-full bg-violet-600 shadow-xl shadow-violet-200 text-white flex items-center justify-center text-xl transition active:scale-95 hover:bg-violet-700"
+                            >
                                 <i className="fas fa-arrow-right"></i>
                             </button>
                         </div>
@@ -418,7 +441,7 @@
           );
         };
 
-        // --- READ TAB ---
+        // --- [TAB] READ ---
         const ReadTab = ({ setToast, onSaveWord }) => {
           const [article, setArticle] = useState(FALLBACK_ARTICLE);
           const [selected, setSelected] = useState(null);
@@ -430,6 +453,7 @@
           useEffect(() => {
               const lastDate = localStorage.getItem('last_article_date');
               const today = getTodayString();
+              // Auto Refresh Daily if API Key exists
               if (lastDate !== today && hasApiKey()) refreshArticle();
           }, []);
 
@@ -440,6 +464,7 @@
                   if(newArt && newArt.segments) {
                       setArticle(newArt);
                       localStorage.setItem('last_article_date', getTodayString());
+                      setToast({show:true, message:"已更新今日文章", type:'success'});
                   }
               } catch(e){ console.error(e); setToast({show:true, message:"文章生成失敗，顯示預設內容", type:'info'}); }
               finally { setGenerating(false); }
@@ -505,7 +530,7 @@
           );
         };
 
-        // --- TALK TAB ---
+        // --- [TAB] TALK ---
         const TalkTab = () => {
           const [connected, setConnected] = useState(false);
           const [messages, setMessages] = useState([]);
@@ -513,11 +538,16 @@
           const [status, setStatus] = useState("點擊麥克風開始");
           const audioRef = useRef(null);
           const streamRef = useRef(null);
+          const scrollRef = useRef(null);
 
           useEffect(() => {
               setTopic(DAILY_TOPICS[Math.floor(Math.random()*DAILY_TOPICS.length)]);
               return () => disconnect();
           }, []);
+
+          useEffect(() => {
+              if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+          }, [messages]);
 
           const init = async () => {
               if(!hasApiKey()){ setStatus("請先設定 API Key"); return; }
@@ -549,7 +579,12 @@
                           },
                           onclose: ()=>{ setStatus("已斷線"); setConnected(false); }
                       },
-                      config: { responseModalities:['AUDIO'], inputAudioTranscription:{}, outputAudioTranscription:{}, systemInstruction:`Chat about: ${topic}. Be friendly.` }
+                      config: { 
+                          responseModalities:['AUDIO'], 
+                          inputAudioTranscription:{}, 
+                          outputAudioTranscription:{}, 
+                          systemInstruction:`Roleplay a conversation. Topic: ${topic}. Be friendly, correct mistakes gently. Name: Rose.` 
+                      }
                   });
                   
                   const sess = await session;
@@ -568,12 +603,14 @@
           };
 
           return (
-            <div className="h-full flex flex-col bg-slate-50 pb-24">
+            <div className="h-full flex flex-col bg-slate-50 relative">
                 <div className="bg-white/80 backdrop-blur p-4 border-b border-gray-100 z-10 sticky top-0">
                     <p className="text-xs font-bold text-rose-400 uppercase tracking-widest text-center mb-1">Today's Topic</p>
                     <h2 className="text-xl font-black text-gray-800 text-center leading-tight">"{topic}"</h2>
+                    <p className="text-xs text-center text-gray-400 mt-1">{status}</p>
                 </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                
+                <div ref={scrollRef} className="flex-1 overflow-y-auto p-4">
                     {messages.length===0 && (
                         <div className="text-center mt-20 opacity-30">
                             <i className="fas fa-microphone-lines text-6xl mb-4 text-rose-300"></i>
@@ -592,8 +629,9 @@
                         ))}
                     </div>
                 </div>
-                <div className="flex justify-center p-6 bg-gradient-to-t from-white via-white to-transparent sticky bottom-20">
-                    <button onClick={connected?disconnect:init} className={`w-20 h-20 rounded-full shadow-2xl flex items-center justify-center border-4 border-white transition active:scale-95 ${connected?'bg-rose-500 animate-pulse':'bg-gradient-to-br from-rose-500 to-pink-600'}`}>
+
+                <div className="absolute bottom-24 left-0 right-0 flex justify-center pointer-events-none">
+                    <button onClick={connected?disconnect:init} className={`pointer-events-auto w-20 h-20 rounded-full shadow-2xl flex items-center justify-center border-4 border-white transition active:scale-95 ${connected?'bg-rose-500 animate-pulse':'bg-gradient-to-br from-rose-500 to-pink-600'}`}>
                         <i className={`fas ${connected?'fa-stop':'fa-microphone'} text-2xl text-white`}></i>
                     </button>
                 </div>
@@ -601,19 +639,24 @@
           );
         };
 
-        // --- MAIN APP ---
+        // --- MAIN APP COMPONENT ---
         const App = () => {
             const [tab, setTab] = useState(AppTab.WORDS);
             const [words, setWords] = useState(FALLBACK_WORDS);
             const [toast, setToast] = useState({show:false, message:'', type:'info'});
             const [goal, setGoal] = useState(10);
 
+            // Daily Words Update Check
             useEffect(()=>{
                 const last = localStorage.getItem('last_word_date');
                 const today = getTodayString();
                 if(last!==today && hasApiKey()) {
                     generateDailyContent('words').then(newWords => {
-                        if(newWords?.length) { setWords(newWords); localStorage.setItem('last_word_date', today); }
+                        if(newWords?.length) { 
+                            setWords(newWords); 
+                            localStorage.setItem('last_word_date', today);
+                            setToast({show:true, message:"今日新單字已生成", type:'success'});
+                        }
                     }).catch(console.error);
                 }
             },[]);
@@ -631,7 +674,8 @@
                     <div className="h-full p-6 overflow-y-auto bg-slate-50 pb-24">
                         <div className="bg-white p-6 rounded-3xl shadow-sm mb-6">
                             <h3 className="font-bold mb-4">API 設定</h3>
-                            <input placeholder="API Key" className="w-full bg-gray-50 p-3 rounded-xl text-sm font-bold mb-3" onBlur={(e)=>saveApiKey(e.target.value)} defaultValue={getApiKey()}/>
+                            <input type="password" placeholder="貼上 API Key" className="w-full bg-gray-50 p-3 rounded-xl text-sm font-bold mb-3 border border-gray-100" onBlur={(e)=>saveApiKey(e.target.value)} defaultValue={getApiKey()}/>
+                            <p className="text-xs text-gray-400">Key 僅儲存於您的瀏覽器中</p>
                         </div>
                         <div className="bg-white p-6 rounded-3xl shadow-sm mb-6">
                             <h3 className="font-bold mb-2">每日目標: {goal}</h3>
@@ -639,7 +683,7 @@
                         </div>
                         <div className="bg-white p-6 rounded-3xl shadow-sm">
                             <h3 className="font-bold mb-4">收藏單字 ({words.filter(w=>w.saved).length})</h3>
-                            {words.filter(w=>w.saved).map(w=>(<div key={w.id} className="flex justify-between p-3 border-b border-gray-50 last:border-0"><div><p className="font-bold">{w.term}</p><p className="text-xs text-gray-400">{w.translation}</p></div></div>))}
+                            {words.filter(w=>w.saved).map(w=>(<div key={w.id} className="flex justify-between p-3 border-b border-gray-50 last:border-0"><div><p className="font-bold">{w.term}</p><p className="text-xs text-gray-400">{w.translation}</p></div><button onClick={()=>playTextToSpeech(w.term)}><i className="fas fa-volume-up text-sky-400"></i></button></div>))}
                         </div>
                     </div>
                 );
