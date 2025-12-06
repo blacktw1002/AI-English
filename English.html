@@ -443,7 +443,17 @@
 
         // --- [TAB] READ ---
         const ReadTab = ({ setToast, onSaveWord }) => {
-          const [article, setArticle] = useState(FALLBACK_ARTICLE);
+          // Initialize state with Lazy Initializer to load from LocalStorage immediately
+          const [article, setArticle] = useState(() => {
+              const saved = localStorage.getItem('daily_article_content');
+              const lastDate = localStorage.getItem('last_article_date');
+              const today = getTodayString();
+              if (saved && lastDate === today) {
+                  try { return JSON.parse(saved); } catch(e) {}
+              }
+              return FALLBACK_ARTICLE;
+          });
+
           const [selected, setSelected] = useState(null);
           const [def, setDef] = useState(null);
           const [loading, setLoading] = useState(false);
@@ -453,7 +463,7 @@
           useEffect(() => {
               const lastDate = localStorage.getItem('last_article_date');
               const today = getTodayString();
-              // Auto Refresh Daily if API Key exists
+              // Auto Refresh Daily if API Key exists and date is old
               if (lastDate !== today && hasApiKey()) refreshArticle();
           }, []);
 
@@ -463,7 +473,10 @@
                   const newArt = await generateDailyContent('article');
                   if(newArt && newArt.segments) {
                       setArticle(newArt);
-                      localStorage.setItem('last_article_date', getTodayString());
+                      const today = getTodayString();
+                      localStorage.setItem('last_article_date', today);
+                      // SAVE TO LOCAL STORAGE
+                      localStorage.setItem('daily_article_content', JSON.stringify(newArt));
                       setToast({show:true, message:"已更新今日文章", type:'success'});
                   }
               } catch(e){ console.error(e); setToast({show:true, message:"文章生成失敗，顯示預設內容", type:'info'}); }
